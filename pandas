@@ -1,0 +1,164 @@
+import tensorflow as tf
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import cv2 as cv
+from tqdm import tqdm
+import random
+import os
+import matplotlib.image as mpimg
+from tensorflow.keras.preprocessing.image import load_img, img_to_array
+from tensorflow.python.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.utils import to_categorical 
+
+
+#training dataset is english_1.csv (df)
+#testing dataset is img
+
+#from google.colab import drive
+#drive.mount('img')
+
+directory ='/content/img/MyDrive/Img'
+files=os.listdir(directory)
+print(files[0:5])
+print(len(files))
+
+datafile=[]
+data=[]
+for file in files:
+    image=load_img(os.path.join(directory,file),grayscale=False,color_mode='rgb',target_size=(100,100))
+    image=img_to_array(image)
+    image=image/255.0
+    data+=[image]
+    datafile+=[file]
+print(datafile[0:5])
+print(len(datafile))
+
+#x = df['image']# x is going to be the images of df
+#y = df['label'] # y is going to be the labels of df
+#classes = y.unique() # list of all unique values in labels
+#x.head()
+
+data1=np.array(data)
+print(data1.shape)
+
+#Read csv (training dataset)
+df = pd.read_csv('/content/english_1.csv')
+df.head()
+
+
+factlabel=pd.factorize(df['label'])
+
+print(factlabel[0])
+print(factlabel[1])
+
+labelfile=[]
+for item in df['image']:
+    labelfile+=[item[4:]]
+df['file']=labelfile
+df['labeln']=factlabel[0]
+
+print(df.head())
+
+df2=[]
+for item in datafile:
+    df2+=[df['labeln'][df['file']==item].values[0]]
+    
+print(df2[0:5])
+print(datafile[0:5])
+
+#imageplot1 = mpimg.imread(df.at[114, "image"])
+#plt.imshow(imageplot1)
+
+labels1=to_categorical(df2)
+labels2=np.array(labels1)
+
+print("Data Shape:{}\nLabels shape: {}".format(data1.shape,labels2.shape))
+
+from sklearn.model_selection import train_test_split
+trainx,testx,trainy,testy=train_test_split(data1,labels2,test_size=0.2,random_state=44)
+
+print(trainx.shape)
+print(testx.shape)
+print(trainy.shape)
+print(testy.shape)
+
+datagen = ImageDataGenerator(horizontal_flip=True,vertical_flip=True,rotation_range=20,zoom_range=0.2,
+                    width_shift_range=0.2,height_shift_range=0.2,shear_range=0.1,fill_mode="nearest")
+
+
+pretrained_model1 = tf.keras.applications.InceptionResNetV2(input_shape=(100,100,3),include_top=False,weights='imagenet',pooling='avg')
+pretrained_model2 = tf.keras.applications.DenseNet121(input_shape=(100,100,3),include_top=False,weights='imagenet',pooling='avg')
+pretrained_model3 = tf.keras.applications.DenseNet201(input_shape=(100,100,3),include_top=False,weights='imagenet',pooling='avg')
+pretrained_model4 = tf.keras.applications.EfficientNetB0(input_shape=(100,100,3),include_top=False,weights='imagenet',pooling='avg')
+pretrained_model5 = tf.keras.applications.EfficientNetB7(input_shape=(100,100,3),include_top=False,weights='imagenet',pooling='avg')
+
+pretrained_model1.trainable = False
+pretrained_model2.trainable = False
+pretrained_model3.trainable = False
+pretrained_model4.trainable = False
+pretrained_model5.trainable = False
+
+
+inputs1 = pretrained_model1.input
+inputs2 = pretrained_model2.input
+inputs3 = pretrained_model3.input
+inputs4 = pretrained_model4.input
+inputs5 = pretrained_model5.input
+
+x1 = tf.keras.layers.Dense(128, activation='relu')(pretrained_model1.output)
+outputs1 = tf.keras.layers.Dense(62, activation='softmax')(x1)
+x2 = tf.keras.layers.Dense(128, activation='relu')(pretrained_model2.output)
+outputs2 = tf.keras.layers.Dense(62, activation='softmax')(x2)
+x3 = tf.keras.layers.Dense(128, activation='relu')(pretrained_model3.output)
+outputs3 = tf.keras.layers.Dense(62, activation='softmax')(x3)
+x4 = tf.keras.layers.Dense(128, activation='relu')(pretrained_model4.output)
+outputs4 = tf.keras.layers.Dense(62, activation='softmax')(x4)
+x5 = tf.keras.layers.Dense(128, activation='relu')(pretrained_model5.output)
+outputs5 = tf.keras.layers.Dense(62, activation='softmax')(x5)
+
+model1 = tf.keras.Model(inputs=inputs1, outputs=outputs1)
+model2 = tf.keras.Model(inputs=inputs2, outputs=outputs2)
+model3 = tf.keras.Model(inputs=inputs3, outputs=outputs3)
+model4 = tf.keras.Model(inputs=inputs4, outputs=outputs4)
+model5 = tf.keras.Model(inputs=inputs5, outputs=outputs5)
+
+#model1.summary()
+#model2.summary()
+#model3.summary()
+#model4.summary()
+#model5.summary()
+
+model1.compile(loss = 'categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+model2.compile(loss = 'categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+model3.compile(loss = 'categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+model4.compile(loss = 'categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+model5.compile(loss = 'categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+
+his1=model1.fit(datagen.flow(trainx,trainy,batch_size=32),validation_data=(testx,testy),epochs=20)
+his2=model2.fit(datagen.flow(trainx,trainy,batch_size=32),validation_data=(testx,testy),epochs=20)
+his3=model3.fit(datagen.flow(trainx,trainy,batch_size=32),validation_data=(testx,testy),epochs=20)
+his4=model4.fit(datagen.flow(trainx,trainy,batch_size=32),validation_data=(testx,testy),epochs=20)
+his5=model5.fit(datagen.flow(trainx,trainy,batch_size=32),validation_data=(testx,testy),epochs=20)
+
+y_pred1=model1.predict(testx)
+y_pred2=model2.predict(testx)
+y_pred3=model3.predict(testx)
+y_pred4=model4.predict(testx)
+y_pred5=model5.predict(testx)
+
+pred1=np.argmax(y_pred1,axis=1)
+pred2=np.argmax(y_pred2,axis=1)
+pred3=np.argmax(y_pred3,axis=1)
+pred4=np.argmax(y_pred4,axis=1)
+pred5=np.argmax(y_pred5,axis=1)
+
+ground = np.argmax(testy,axis=1)
+from sklearn.metrics import classification_report
+
+print(classification_report(ground,pred1))
+print(classification_report(ground,pred2))
+print(classification_report(ground,pred3))
+print(classification_report(ground,pred4))
+print(classification_report(ground,pred5))
